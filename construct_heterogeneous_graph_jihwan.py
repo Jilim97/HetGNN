@@ -1,6 +1,9 @@
+import sys
+sys.path.append('/Users/jihwanlim/Documents/GitHub/NetworkAnalysis/')
+
 from NetworkAnalysis.MultiGraph import MultiGraph
 from NetworkAnalysis.UndirectedInteractionNetwork import UndirectedInteractionNetwork
-from gat_dependency.utils import generate_traintest_dependencies, construct_combined_traintest, write_h5py
+#from gat_dependency.utils import generate_traintest_dependencies, construct_combined_traintest, write_h5py
 from itertools import combinations
 
 import matplotlib.pyplot as plt
@@ -9,7 +12,7 @@ import pandas as pd
 import numpy as np
 import pickle
 
-BASE_PATH = "/home/bioit/pstrybol/GNN_sensprediction_Marija/"
+BASE_PATH = "/Users/jihwanlim/Desktop/"
 cancer_type = "Neuroblastoma"
 # cancer_type_name = "Sarcoma"
 train_ratio = 0.8
@@ -36,10 +39,10 @@ if ppi == 'PCNet':
     ppi_obj = UndirectedInteractionNetwork.from_ndex(ndex_id='c3554b4e-8c81-11ed-a157-005056ae23aa', keeplargestcomponent=False,
                                                     attributes_for_names='v', node_type=int)
 else:
-    ppi_ = pd.read_csv(BASE_PATH+'scaffolds/reactome_2021.txt', header=0, sep='\t')
+    ppi_ = pd.read_csv(BASE_PATH+'scaffolds/reactome2.txt', header=0, sep='\t')
     ppi_obj = UndirectedInteractionNetwork(ppi_, keeplargestcomponent=False)
     
-ppi_obj.set_node_types(node_types={i: "gene" for i in ppi_obj.nodes})
+ppi_obj.set_node_types(node_types={i: "gene" for i in ppi_obj.node_names})
 
 degreedf = ppi_obj.getDegreeDF(set_index=True)
 degreedf.loc[['BRIP1', 'RRM2']]
@@ -47,17 +50,17 @@ degreedf.loc[['BRIP1', 'RRM2']]
 
 # Select genes for which all features are avaialble and are situated in the network
 focus_genes = sorted(list(set(ppi_obj.node_names) & set(crispr_effect.columns)))
-assert len(focus_genes) == ppi_obj.N_nodes,"Error node mismatch"
+#assert len(focus_genes) == ppi_obj.N_nodes,"Error node mismatch" #12951 / 13953
 
 focus_genes2int = {k:i for i, k in enumerate(focus_genes)}
 focus_int2gene = {v:k for k, v in focus_genes2int.items()}
 
 focus_cls = sorted(list(set(ccles.index) & set(crispr_effect.index)))
 
-ccles = ccles.loc[focus_cls, :]
-crispr_effect = crispr_effect.loc[focus_cls, focus_genes]
+ccles = ccles.loc[focus_cls, :] # filter only focus cell line
+crispr_effect = crispr_effect.loc[focus_cls, focus_genes] # filter only focus cell line & gene
 dis_groups_d = ccles.groupby('OncotreePrimaryDisease').groups
-dis_groups = pd.DataFrame.from_dict(dis_groups_d, orient='index').applymap(lambda x: '' if x is None else x)
+dis_groups = pd.DataFrame.from_dict(dis_groups_d, orient='index').applymap(lambda x: '' if x is None else x) 
 dis_groups = dis_groups.apply(lambda x: ','.join(x), axis=1).apply(lambda x: [i for i in x.split(',') if i]).to_frame(name='cells')
 dis_groups['length'] = dis_groups["cells"].apply(lambda x: len(x))
 

@@ -1,5 +1,9 @@
+import sys
+sys.path.append('/Users/jihwanlim/Documents/GitHub/NetworkAnalysis/')
+
 from NetworkAnalysis.UndirectedInteractionNetwork import UndirectedInteractionNetwork
-from gat_dependency.utils import read_gmt_file
+
+#from gat_dependency.utils import read_gmt_file
 import torch_geometric.transforms as T
 from torch_geometric.transforms import to_undirected
 from torch_geometric.data import HeteroData
@@ -11,7 +15,7 @@ import pickle
 import torch
 
 cancer_type = 'Neuroblastoma'
-BASE_PATH = "/home/bioit/pstrybol/GNN_sensprediction_Marija/"
+BASE_PATH = "/Users/jihwanlim/Desktop/"
 ppi = "Reactome"
 remove_rpl = "_noRPL"
 remove_commonE = ""
@@ -20,7 +24,7 @@ crispr_threshold_pos = -1.5
 drugtarget_nw = "_drugtarget"
 cell_feat_name = "CNV"
 
-with open(BASE_PATH+f"multigraphs/{cancer_type.replace(' ', '_')}_{ppi}{remove_rpl}_{useSTD}{remove_commonE}_crispr{str(crispr_threshold_pos).replace('.','_')}{drugtarget_nw}.pickle", 'rb') as handle:
+with open(BASE_PATH+f"multigraphs/{cancer_type.replace(' ', '_')}_{ppi}{remove_rpl}_{useSTD}{remove_commonE}_crispr{str(crispr_threshold_pos).replace('.','_')}.pickle", 'rb') as handle:
     mg_obj = pickle.load(handle)
 all_genes_int = mg_obj.type2nodes['gene']
 all_genes_name = [mg_obj.int2gene[i] for i in all_genes_int]
