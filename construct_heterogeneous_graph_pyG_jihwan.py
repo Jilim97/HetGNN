@@ -3,7 +3,7 @@ sys.path.append('/Users/jihwanlim/Documents/GitHub/NetworkAnalysis/')
 
 from NetworkAnalysis.UndirectedInteractionNetwork import UndirectedInteractionNetwork
 
-#from gat_dependency.utils import read_gmt_file
+from gat_dependency.utils import read_gmt_file
 import torch_geometric.transforms as T
 from torch_geometric.transforms import to_undirected
 from torch_geometric.data import HeteroData
@@ -21,8 +21,9 @@ remove_rpl = "_noRPL"
 remove_commonE = ""
 useSTD = "STD"
 crispr_threshold_pos = -1.5
-drugtarget_nw = "_drugtarget"
-cell_feat_name = "CNV"
+#drugtarget_nw = "_drugtarget"
+drugtarget_nw = ""
+cell_feat_name = "expression"
 
 with open(BASE_PATH+f"multigraphs/{cancer_type.replace(' ', '_')}_{ppi}{remove_rpl}_{useSTD}{remove_commonE}_crispr{str(crispr_threshold_pos).replace('.','_')}.pickle", 'rb') as handle:
     mg_obj = pickle.load(handle)
@@ -45,12 +46,14 @@ dep_interactions = dep_obj.getInteractionNamed()
 dep_genes = [dep_obj.int2gene[i] for i in dep_obj.type2nodes['gene']]
 
 dep_interactions.loc[~dep_interactions.Gene_A.isin(cells), ['Gene_A', 'Gene_B']] = \
-    dep_interactions.loc[~dep_interactions.Gene_A.isin(cells), ['Gene_B', 'Gene_A']].values
+    dep_interactions.loc[~dep_interactions.Gene_A.isin(cells), ['Gene_B', 'Gene_A']].values ##???
 
 assert dep_interactions.Gene_A.isin(cells).sum() == dep_interactions.shape[0]
 dep_interactions = dep_interactions.applymap(lambda x: cell2int[x] if x in cell2int else ppi_obj_new_gene2int[x])
 dep_interactions = dep_interactions[['Gene_B', 'Gene_A']]
 print(dep_interactions.shape)
+
+# cell gene 합쳐서 int로 되어있어서 각각 분리
 
 # Drug target network
 if drugtarget_nw:
@@ -81,16 +84,16 @@ if drugtarget_nw:
 # -------------------------------------------------------------------------------------------------------------------------------------
 
 # Gene features
-cgn = read_gmt_file(BASE_PATH+"data/c2.cgp.v2023.1.Hs.symbols.gmt", ppi_obj)
+cgn = read_gmt_file(BASE_PATH+"data/c2.cgp.v2023.2.Hs.symbols.gmt", ppi_obj)
 cgn_df = pd.DataFrame(np.zeros((len(all_genes_name), len(cgn))), index=all_genes_name, columns=list(cgn.keys()))
 for k, v in cgn.items():
     cgn_df.loc[list(v), k] = 1
-zero_gene_feat = cgn_df.index[cgn_df.sum(axis=1) == 0] # dit mag niet want alle genes moeten features hebbem
-# Check hoeveel van de dep genes er in die all 0 zitten want anders basically heeft dit geen nut
+zero_gene_feat = cgn_df.index[cgn_df.sum(axis=1) == 0] # This is not allowed because all genes must have features
+# Check how many of the dep genes are in that all 0, otherwise this is basically of no use
 zero_depgenes = set(zero_gene_feat) & set(dep_genes)
 len(zero_depgenes)
 
-gene_feat = torch.from_numpy(cgn_df.values).to(torch.float)
+gene_feat = torch.from_numpy(cgn_df.values).to(torch.float) ##why not filtering???? 크키맞출라고
 
 # Cell features
 if cell_feat_name == "expression":

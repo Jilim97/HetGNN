@@ -14,7 +14,7 @@ import pickle
 
 BASE_PATH = "/Users/jihwanlim/Desktop/"
 cancer_type = "Neuroblastoma"
-# cancer_type_name = "Sarcoma"
+#cancer_type_name = "Sarcoma"
 train_ratio = 0.8
 ppi = "Reactome"
 remove_rpl = "_noRPL"
@@ -39,12 +39,12 @@ if ppi == 'PCNet':
     ppi_obj = UndirectedInteractionNetwork.from_ndex(ndex_id='c3554b4e-8c81-11ed-a157-005056ae23aa', keeplargestcomponent=False,
                                                     attributes_for_names='v', node_type=int)
 else:
-    ppi_ = pd.read_csv(BASE_PATH+'scaffolds/reactome2.txt', header=0, sep='\t')
+    ppi_ = pd.read_csv(BASE_PATH+'scaffolds/reactome3.txt', header=0, sep='\t')
     ppi_obj = UndirectedInteractionNetwork(ppi_, keeplargestcomponent=False)
     
-ppi_obj.set_node_types(node_types={i: "gene" for i in ppi_obj.node_names})
+ppi_obj.set_node_types(node_types={i: "gene" for i in ppi_obj.node_names}) ####??
 
-degreedf = ppi_obj.getDegreeDF(set_index=True)
+degreedf = ppi_obj.getDegreeDF(set_index=True) # degree 노드 얼마나 연결됐는지
 degreedf.loc[['BRIP1', 'RRM2']]
 
 
@@ -143,27 +143,27 @@ disease_label = ccles.loc[cells].OncotreePrimaryDisease.values
 dis2int = {e:i+1 for i, e in enumerate(set(disease_label))}
 disease_label_int = [dis2int[i] for i in disease_label]
 
-if '_' in cancer_type:
+'''if '_' in cancer_type:
     cts = cancer_type.split('_')
     assert len(cts) == 2,"More than 2 cancer types not yet supported"
     disease_label = [cts[0] if cts[0].lower() in i.lower() else cts[1] for i in disease_label]
 else:
-    cts = ['Ewing Sarcoma', 'Osteosarcoma', 'Rhabdomyosarcoma']
+    cts = ['Ewing Sarcoma', 'Osteosarcoma', 'Rhabdomyosarcoma'] ###????????
     ix = [i for i, ct in enumerate(disease_label) if ct in cts]
     cells = np.array(cells)[ix] 
-    disease_label = disease_label[ix]
+    disease_label = disease_label[ix] # for a plot''' 
 
 disease2color = {d: c for d, c in zip(set(disease_label), sns.color_palette("colorblind", len(set(disease_label))))}
-dis_label_colors = [disease2color[i] for i in disease_label]
+dis_label_colors = [disease2color[i] for i in disease_label] # visualization2
 
 # ---------------------------------------------------------------------------------------------------------------
 # Combining both objects into a heterogeneous multi graph
 
-dep_nw_obj = UndirectedInteractionNetwork(pd.DataFrame(dependency_edgelist, columns=['cell', 'gene']))
+dep_nw_obj = UndirectedInteractionNetwork(pd.DataFrame(dependency_edgelist, columns=['cell', 'gene'])) ## why GeneA GeneB column
 dep_nw_obj.set_node_types(node_types={i: "cell" if i in crispr_neurobl.index else "gene" for i in dep_nw_obj.node_names})
 
 
-drugtarget_nw = True
+drugtarget_nw = False
 if drugtarget_nw:
     drugtarget_nw_str = "_drugtarget"
     with open(BASE_PATH+f"multigraphs/drug_target_network.pickle", 'rb') as handle:
