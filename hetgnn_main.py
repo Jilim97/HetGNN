@@ -37,15 +37,15 @@ if __name__=='__main__':
 
     # general args
     parser.add_argument('--save_path', type=str, default='/project_ghent/GAT_pred/', help='path to save results')
-    parser.add_argument('--log', type=int, default=0, help='Whether to log to wandb')
-    parser.add_argument('--wandb_user', type=str, default='one-team', help='wandb username')
+    parser.add_argument('--log', type=int, default=1, help='Whether to log to wandb')
+    parser.add_argument('--wandb_user', type=str, default='jilim97', help='wandb username')
 
     # model and train args
     parser.add_argument('--cancer_type', type=str, default="Neuroblastoma", help='Cancer type to train for')
-    parser.add_argument('--drugs', type=int, default="1", help='Use the intergrated graph with drugs and targets')
+    parser.add_argument('--drugs', type=int, default="0", help='Use the intergrated graph with drugs and targets')
     parser.add_argument('--ppi', type=str, default="Reactome", help='Which ppi to use as scaffold')
     parser.add_argument('-crp_pos', type=float, default=-1.5, help='crispr threshold for positives')
-    parser.add_argument('--epochs', type=int, default=3, help='num epochs')
+    parser.add_argument('--epochs', type=int, default=10, help='num epochs')
     parser.add_argument('--npr', type=float, default=3.0, help='Negatiev sampling ratio')
     parser.add_argument('--emb_dim', type=str, default="512", help='Embedding dimension')
     parser.add_argument('--train_neg_sampling', type=int, default=1, help='If 1(true) negatives will be sampled BEFORE training')
@@ -57,8 +57,8 @@ if __name__=='__main__':
     parser.add_argument('--lr', type=float, default=1e-2, help='learning rate')
     parser.add_argument('--hidden_features', type=str, default='-1,256,128', help='How many hidden features for each GNN layer')
     parser.add_argument('--patience', type=int, default=5, help='patience before breaking out of loop')
-    parser.add_argument('--layer_name', type=str, default='GATv2', help='Which gnn layer to use in the model')
-    parser.add_argument('--gcn_model', type=str, default='gat', help='which GNN model to use')
+    parser.add_argument('--layer_name', type=str, default='sageconv', help='Which gnn layer to use in the model')
+    parser.add_argument('--gcn_model', type=str, default='simple', help='which GNN model to use')
     parser.add_argument('--lp_model', type=str, default='simple', help='which LP model to use')
     parser.add_argument('--remove_rpl', type=int, default=1, help='removing RPL genes')
     parser.add_argument('--remove_commonE', type=int, default=0, help='removing common essentials')
@@ -66,6 +66,9 @@ if __name__=='__main__':
     parser.add_argument('--save_full_pred', type=int, default=1, help='If you want to save the full (all genes in scaffold) perdiction df')
     parser.add_argument('--plot_cell_embeddings', type=int, default=0, help='If you want to plot the cell embeddings colored by subtype')
     parser.add_argument('--heads', type=str, default='1,1', help='Number of multiheads to use per GATlayer, must be same length as hidden features')
+    parser.add_argument('--cell_feat', type=str, default='expression', help='Cell feature name')
+    parser.add_argument('--gene_feat', type=str, default='cgp', help='Gene feature name')
+
 
     args = parser.parse_args()
     now = datetime.now()
@@ -74,12 +77,13 @@ if __name__=='__main__':
     args.useSTD = "STD" if args.useSTD else "NOSTD"
     args.drugs = "_drugtarget" if args.drugs else ""
 
-    experiment_name = now.strftime("%m-%d-%Y;%H:%M:%S")
+
+    experiment_name = f"{args.epochs}_{args.layer_name}_{args.batch_size}"
 
     if args.log:
-        run = wandb.init(project="hetgnn", entity=args.wandb_user, config=args, name=experiment_name, group=f"{args.cancer_type}_Drug") 
+        run = wandb.init(project="hetGNN", entity=args.wandb_user,  config=args, name=experiment_name, group=f"{args.cancer_type}_{args.gene_feat}") 
 
-    BASE_PATH = "/home/bioit/pstrybol/GNN_sensprediction_Marija/"
+    BASE_PATH = "/kyukon/data/gent/vo/000/gvo00095/vsc45456/"
     # BASE_PATH = '/'.join(os.path.dirname(os.path.realpath(__file__)).split('/')[:-1])
 
     gpu_available = torch.cuda.is_available()
@@ -90,9 +94,13 @@ if __name__=='__main__':
         device = 'cpu'
 
     # Read in Heterogeneous graph and ori screening data
+    '''heterodata_obj = torch.load(BASE_PATH+f"multigraphs/"\
+                                f"heteroData_gene_cell_{args.cancer_type.replace(' ', '_')}_{args.ppi}"\
+                                    f"_crispr{str(args.crp_pos).replace('.','_')}{args.drugs}_cgp_cnv.pt")'''
+    
     heterodata_obj = torch.load(BASE_PATH+f"multigraphs/"\
                                 f"heteroData_gene_cell_{args.cancer_type.replace(' ', '_')}_{args.ppi}"\
-                                    f"_crispr{str(args.crp_pos).replace('.','_')}{args.drugs}_cgp_cnv.pt")
+                                    f"_crispr{str(args.crp_pos).replace('.','_')}{args.drugs}_{args.gene_feat}_{args.cell_feat}.pt")
     
     cells, genes = heterodata_obj['cell'].names, heterodata_obj['gene'].names
     if args.drugs:
@@ -143,6 +151,7 @@ if __name__=='__main__':
     
     hetGNNmodel = HeteroData_GNNmodel(heterodata=heterodata_obj,
                                   node_types=node_types,
+                                  node_types_to_pred = node_types,
                                   embedding_dim=emb_dim,
                                   gcn_model=args.gcn_model,
                                   features=hidden_features,
@@ -259,7 +268,8 @@ if __name__=='__main__':
 
             full_pred_data.to(device)
             total_preds = hetGNNmodel(data=full_pred_data, edge_type_label="gene,dependency_of,cell")
-            tot_pred_deps = construct_complete_predMatrix(total_predictions=total_preds.cpu().numpy(),
+            total_preds_out = torch.sigmoid(total_preds).cpu().numpy()
+            tot_pred_deps = construct_complete_predMatrix(total_predictions=total_preds_out,
                                                         edge_index=cl_probs,
                                                         index=cls_int.numpy(),
                                                         columns=dep_genes)
@@ -345,23 +355,23 @@ if __name__=='__main__':
     cell_embs_df = pd.DataFrame(data=embs['cell'].cpu().detach().numpy(), index=cells)
     # cell_embs_df_copy = pd.DataFrame(data=cell_embeddings, index=cells)
     
-    gene_embs_df.to_csv(BASE_PATH+f"results/hetgnn/"\
-                        f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN_gene_embs{args.drugs}_cgp_cnv.csv")
-    cell_embs_df.to_csv(BASE_PATH+f"results/hetgnn/"\
-                        f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN_cell_embs{args.drugs}_cgp_cnv.csv")
+    gene_embs_df.to_csv(BASE_PATH+f"results/{args.gene_feat}-{args.cell_feat}/"\
+                        f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN_gene_embs{args.drugs}_{args.gene_feat}_{args.cell_feat}_{arg.layer_name}.csv")
+    cell_embs_df.to_csv(BASE_PATH+f"results/{args.gene_feat}-{args.cell_feat}/"\
+                        f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN_cell_embs{args.drugs}_{args.gene_feat}_{args.cell_feat}_{arg.layer_name}.csv")
 
     if args.drugs:
         drug_embs_df = pd.DataFrame(data=embs['drug'].cpu().detach().numpy(), index=drugs)
-        drug_embs_df.to_csv(BASE_PATH+f"results/hetgnn/"\
-                            f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN_drug_embs_cgp_cnv.csv")
+        drug_embs_df.to_csv(BASE_PATH+f"results/{args.cell_feat}/"\
+                            f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN_drug_embs_{args.gene_feat}_{args.cell_feat}_{arg.layer_name}.csv")
     
     if args.save_full_pred:
         tot_pred_deps = construct_complete_predMatrix(total_predictions=preds_full_all,
                                                     edge_index=cl_probs, index=cls_int.numpy(),
                                                     columns=heterodata_obj['gene'].node_id.numpy())
 
-        tot_pred_deps.to_csv(BASE_PATH+f"results/hetgnn/"\
-                            f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN{args.drugs}_cgp_cnv.csv")
+        tot_pred_deps.to_csv(BASE_PATH+f"results/{args.gene_feat}-{args.cell_feat}/"\
+                            f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN{args.drugs}_{args.gene_feat}_{args.cell_feat}_{arg.layer_name}.csv")
         
 
     if args.plot_cell_embeddings:

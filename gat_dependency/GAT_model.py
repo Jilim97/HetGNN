@@ -423,7 +423,8 @@ class HeteroData_GNNmodel(nn.Module):
         etl = edge_type_label.split(',')
         # x_dict holds the feature matrix of all node_types
 
-        if len(self.node_types) == 2:
+        x_dict = data.x_dict
+        '''if len(self.node_types) == 2:
             # x_dict = {self.node_types[0]: self.nt1_emb(data[self.node_types[0]].node_id),
             #           self.node_types[1]: self.nt2_emb(data[self.node_types[1]].node_id)}
             # x_dict = {self.node_types[0]: self.nt1_emb(data[self.node_types[0]].node_id) + self.nt1_lin(data[self.node_types[0]].x),
@@ -444,7 +445,7 @@ class HeteroData_GNNmodel(nn.Module):
             #           self.node_types[2]: self.nt3_emb(data[self.node_types[2]].node_id) + self.nt3_lin(data[self.node_types[2]].x)}
             x_dict = {self.node_types[0]: data[self.node_types[0]].x,
                       self.node_types[1]: data[self.node_types[1]].x,
-                      self.node_types[2]: data[self.node_types[2]].x}
+                      self.node_types[2]: data[self.node_types[2]].x}'''
 
         if self.gcn_model == 'simple':
             x_dict = self.gnn(x_dict, data.edge_index_dict)

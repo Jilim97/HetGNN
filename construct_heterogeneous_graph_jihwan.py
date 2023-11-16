@@ -12,7 +12,7 @@ import pandas as pd
 import numpy as np
 import pickle
 
-BASE_PATH = "/Users/jihwanlim/Desktop/"
+BASE_PATH = "/kyukon/data/gent/vo/000/gvo00095/vsc45456/"
 cancer_type = "Neuroblastoma"
 #cancer_type_name = "Sarcoma"
 train_ratio = 0.8
