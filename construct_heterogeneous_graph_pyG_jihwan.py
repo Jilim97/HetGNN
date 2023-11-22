@@ -20,7 +20,7 @@ useSTD = "STD"
 crispr_threshold_pos = -1.5
 #drugtarget_nw = "_drugtarget"
 drugtarget_nw = ""
-cell_feat_name = "expression_cnv"
+cell_feat_name = "expression"
 gene_feat_name = 'cgp'
 
 with open(BASE_PATH+f"multigraphs/{cancer_type.replace(' ', '_')}_{ppi}{remove_rpl}_{useSTD}{remove_commonE}_crispr{str(crispr_threshold_pos).replace('.','_')}.pickle", 'rb') as handle:
@@ -89,7 +89,7 @@ elif gene_feat_name == 'bp':
 elif gene_feat_name == 'go':    
     cgn = read_gmt_file(BASE_PATH+"data/c5.go.v2023.2.Hs.symbols.gmt", ppi_obj)
 elif gene_feat_name == 'cp':  
-    cgn = read_gmt_file(BASE_PATH+"data/c2.cp.v2023.2.Hs.symbols.gmt.gmt", ppi_obj)
+    cgn = read_gmt_file(BASE_PATH+"data/c2.cp.v2023.2.Hs.symbols.gmt", ppi_obj)
 
 cgn_df = pd.DataFrame(np.zeros((len(all_genes_name), len(cgn))), index=all_genes_name, columns=list(cgn.keys()))
 for k, v in cgn.items():
@@ -176,7 +176,7 @@ elif "SomaticMutation" in cell_feat_name:
     elif 'Hotspot' in cell_feat_name:
         path = BASE_PATH+'data/raw/OmicsSomaticMutationsMatrixHotspot.csv'
     elif 'Dummy' in cell_feat_name:
-        path = BASE_PATH+'data/raw/OmicsSomaticMutationsDummy.csv'
+        path = BASE_PATH+'data/raw/OmicsSomaticMutationsMatrixDummy2.csv'
     ccle_SM = pd.read_csv(path, header=0, index_col=0)
     ccle_SM.columns = [i.split(' ')[0] for i in ccle_SM.columns]
     ccle_SM = ccle_SM[ccle_SM.columns[ccle_SM.isna().sum() == 0]]

@@ -1,0 +1,126 @@
+wandb_version: 1
+
+save_path:
+  desc: null
+  value: /project_ghent/GAT_pred/
+log:
+  desc: null
+  value: 1
+wandb_user:
+  desc: null
+  value: jilim97
+cancer_type:
+  desc: null
+  value: Neuroblastoma
+drugs:
+  desc: null
+  value: ''
+ppi:
+  desc: null
+  value: Reactome
+crp_pos:
+  desc: null
+  value: -1.5
+epochs:
+  desc: null
+  value: 50
+npr:
+  desc: null
+  value: 3.0
+emb_dim:
+  desc: null
+  value: '512'
+train_neg_sampling:
+  desc: null
+  value: 1
+val_ratio:
+  desc: null
+  value: 0.2
+test_ratio:
+  desc: null
+  value: 0.2
+disjoint_train_ratio:
+  desc: null
+  value: 0.0
+dropout:
+  desc: null
+  value: 0.2
+batch_size:
+  desc: null
+  value: 256
+lr:
+  desc: null
+  value: 1.0e-05
+hidden_features:
+  desc: null
+  value: -1,256,128
+patience:
+  desc: null
+  value: 10
+layer_name:
+  desc: null
+  value: GraphConv
+gcn_model:
+  desc: null
+  value: simple
+lp_model:
+  desc: null
+  value: simple
+remove_rpl:
+  desc: null
+  value: _noRPL
+remove_commonE:
+  desc: null
+  value: ''
+useSTD:
+  desc: null
+  value: STD
+save_full_pred:
+  desc: null
+  value: 1
+plot_cell_embeddings:
+  desc: null
+  value: 0
+heads:
+  desc: null
+  value: 1,1
+cell_feat:
+  desc: null
+  value: expression
+gene_feat:
+  desc: null
+  value: cgp
+aggregate:
+  desc: null
+  value: mean
+_wandb:
+  desc: null
+  value:
+    python_version: 3.10.13
+    cli_version: 0.15.12
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1700648118.580083
+    t:
+      1:
+      - 1
+      - 5
+      - 53
+      - 55
+      - 77
+      2:
+      - 1
+      - 5
+      - 53
+      - 55
+      - 77
+      3:
+      - 13
+      - 16
+      - 23
+      4: 3.10.13
+      5: 0.15.12
+      8:
+      - 5
+      13: linux-x86_64

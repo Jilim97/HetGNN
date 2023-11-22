@@ -1,0 +1,10 @@
+
+GPU Available: False
+/kyukon/data/gent/vo/000/gvo00095/vsc45456/Master-Dissertation-DrugSensitivityGNN/hetgnn_main.py:126: FutureWarning: DataFrame.applymap has been deprecated. Use DataFrame.map instead.
+  crispr_neurobl_bin = crispr_neurobl_int.applymap(lambda x: int(x < args.crp_pos))
+Traceback (most recent call last):
+  File "/kyukon/data/gent/vo/000/gvo00095/vsc45456/Master-Dissertation-DrugSensitivityGNN/hetgnn_main.py", line 158, in <module>
+    hetGNNmodel = HeteroData_GNNmodel(heterodata=heterodata_obj,
+  File "/kyukon/data/gent/vo/000/gvo00095/vsc45456/Master-Dissertation-DrugSensitivityGNN/gat_dependency/GAT_model.py", line 403, in __init__
+    self.gnn = GCNsimple(hidden_channels=features, layer_name=layer_name, aggregate=aggregate **kwargs)
+TypeError: unsupported operand type(s) for ** or pow(): 'str' and 'dict'

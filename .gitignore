@@ -1,2 +1,3 @@
-/data/
-/Mutagenicity/
+./data
+./Mutagenicity
+./wandb

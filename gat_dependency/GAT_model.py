@@ -248,11 +248,11 @@ class custom_ReLU(nn.Module):
 # ------------------------------------------------------------------------------------------------------
 
 class GCNsimple(nn.Module):
-    def __init__(self, hidden_channels: list, layer_name:str, **kwargs) -> None:
+    def __init__(self, hidden_channels: list, layer_name:str, aggregate:str, **kwargs) -> None:
         super().__init__()
         gnnlayer = gnn_factory[layer_name]
-        self.gnn1 = gnnlayer(in_channels=hidden_channels[0], out_channels=hidden_channels[1], **kwargs)
-        self.gnn2 = gnnlayer(in_channels=hidden_channels[1], out_channels=hidden_channels[2], **kwargs)
+        self.gnn1 = gnnlayer(in_channels=hidden_channels[0], out_channels=hidden_channels[1], aggr = aggregate, **kwargs)
+        self.gnn2 = gnnlayer(in_channels=hidden_channels[1], out_channels=hidden_channels[2], aggr = aggregate, **kwargs)
         # self.gnn3 = gnnlayer(in_channels=hidden_channels[2], out_channels=hidden_channels[3], **kwargs)
 
         
@@ -365,7 +365,8 @@ class LPdeep_classif(nn.Module):
 class HeteroData_GNNmodel(nn.Module):
     def __init__(self, heterodata: HeteroData, node_types: list, node_types_to_pred: list, embedding_dim, features_dim: dict,
                  gcn_model: str, features: list, layer_name: str='sageconv', heads: list=None,
-                 dropout: float=0.2, act_fn: torch.nn.modules.activation=torch.nn.ReLU, lp_model: str='simple', **kwargs):
+                 dropout: float=0.2, act_fn: torch.nn.modules.activation=torch.nn.ReLU, lp_model: str='simple', 
+                 aggregate: str='mean' , **kwargs):
         super().__init__()
         # We learn separate embedding matrices for each node type
         self.node_types = node_types
@@ -399,7 +400,7 @@ class HeteroData_GNNmodel(nn.Module):
         
         # Instantiate homoGNN
         if self.gcn_model == 'simple':
-            self.gnn = GCNsimple(hidden_channels=features, layer_name=layer_name, **kwargs)
+            self.gnn = GCNsimple(hidden_channels=features, layer_name=layer_name, aggregate=aggregate, **kwargs)
             self.gnn = geom_nn.to_hetero(self.gnn, metadata=heterodata.metadata())
 
         elif self.gcn_model == 'gat':
