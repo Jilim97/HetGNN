@@ -17,6 +17,8 @@ import argparse
 import wandb
 from datetime import datetime
 from torch_geometric.explain import Explainer, GNNExplainer, ModelConfig
+from torch_geometric import seed_everything
+from copy import deepcopy
 
 def construct_complete_predMatrix(total_predictions: np.array,
                                   edge_index: torch.Tensor,
@@ -44,7 +46,7 @@ if __name__=='__main__':
     parser.add_argument('--cancer_type', type=str, default="Neuroblastoma", help='Cancer type to train for')
     parser.add_argument('--drugs', type=int, default="0", help='Use the intergrated graph with drugs and targets')
     parser.add_argument('--ppi', type=str, default="Reactome", help='Which ppi to use as scaffold')
-    parser.add_argument('-crp_pos', type=float, default=-1.5, help='crispr threshold for positives')
+    parser.add_argument('--crp_pos', type=float, default=-1.5, help='crispr threshold for positives')
     parser.add_argument('--epochs', type=int, default=10, help='num epochs')
     parser.add_argument('--npr', type=float, default=3.0, help='Negatiev sampling ratio')
     parser.add_argument('--emb_dim', type=str, default="512", help='Embedding dimension')
@@ -69,6 +71,8 @@ if __name__=='__main__':
     parser.add_argument('--cell_feat', type=str, default='expression', help='Cell feature name')
     parser.add_argument('--gene_feat', type=str, default='cgp', help='Gene feature name')
     parser.add_argument('--aggregate', type=str, default='mean', help='Aggregation method')
+    parser.add_argument('--seed', type=int, default=42, help='Random Seed')
+    parser.add_argument('--exp_name', type=str, default='emb', help='Experiment Name')
 
 
     args = parser.parse_args()
@@ -78,16 +82,13 @@ if __name__=='__main__':
     args.useSTD = "STD" if args.useSTD else "NOSTD"
     args.drugs = "_drugtarget" if args.drugs else ""
 
-    if args.layer_name == 'sageconv' or 'GraphConv':
-        experiment_name = f"{args.cell_feat}-{args.gene_feat}-{args.aggregate}"
-        group_name = f"{args.cancer_type}_{args.gene_feat}_{args.layer_name}-{args.aggregate}"
-    else:
-        experiment_name = f"{args.cell_feat}-{args.gene_feat}"
-        group_name = f"{args.cancer_type}_{args.gene_feat}_{args.layer_name}"
+    seed_everything(args.seed)
 
+    experiment_name = f"{args.exp_name}"
+    group_name = f"{args.cell_feat}"
 
     if args.log:
-        run = wandb.init(project="hetGNN", entity=args.wandb_user,  config=args, name=experiment_name, group=group_name) 
+        run = wandb.init(project="CKPT_Loss", entity=args.wandb_user,  config=args, name=experiment_name, group=group_name) 
 
     BASE_PATH = "/kyukon/data/gent/vo/000/gvo00095/vsc45456/"
     # BASE_PATH = '/'.join(os.path.dirname(os.path.realpath(__file__)).split('/')[:-1])
@@ -188,10 +189,20 @@ if __name__=='__main__':
 
     # Define training parameters
     optimizer = torch.optim.Adam(hetGNNmodel.parameters(), lr=args.lr)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,
+                                                        T_max=args.epochs,
+                                                        eta_min=0, 
+                                                        last_epoch=-1,
+                                                        verbose=False,
+                                                        )
     loss_fn = torch.nn.BCEWithLogitsLoss()
     patience = args.patience
     best_loss = np.inf
     epoch_since_best = 0
+    best_ap = 0
+    best_ap_model = None
+    lowest_loss = np.inf
+    best_loss_model = None
     n_epochs = args.epochs
 
     # Split graph in train/validation
@@ -252,11 +263,12 @@ if __name__=='__main__':
             else:
                 out = hetGNNmodel(sampled_data, edge_type_label="gene,dependency_of,cell")
             ground_truth = sampled_data["gene", "dependency_of", "cell"].edge_label
-            loss = loss_fn(out, ground_truth) #### MSE
+            loss = loss_fn(out, ground_truth) 
             total_train_loss += loss
             loss.backward()
             optimizer.step()
 
+        # scheduler.step()
         ap_val, auc_val = 0, 0
         hetGNNmodel.eval()
         with torch.no_grad():
@@ -273,6 +285,16 @@ if __name__=='__main__':
                 auc_val = roc_auc_score(ground_truth.cpu(), pred.cpu())
                 ap_val = average_precision_score(ground_truth.cpu(), pred.cpu())
 
+                if val_loss < lowest_loss:
+                    lowest_loss = val_loss
+                    best_loss_model = deepcopy(hetGNNmodel.state_dict())
+                    final_epoch = epoch
+
+                # if ap_val > best_ap:
+                #     best_ap = ap_val
+                #     best_ap_model = deepcopy(hetGNNmodel.state_dict())
+                #     final_epoch = epoch
+
             full_pred_data.to(device)
             total_preds = hetGNNmodel(data=full_pred_data, edge_type_label="gene,dependency_of,cell")
             total_preds_out = torch.sigmoid(total_preds).cpu().numpy()
@@ -288,8 +310,8 @@ if __name__=='__main__':
                                                         y_score=row.values))
             for col in tot_pred_deps.columns:
                 gene_ap.append(average_precision_score(y_true=crispr_neurobl_bin[col].values,
-                                                        y_score=tot_pred_deps[col].values))
-            
+                                                        y_score=tot_pred_deps[col].values))            
+
             assay_ap_total.append(assay_ap)
             gene_ap_total.append(gene_ap)
 
@@ -315,16 +337,45 @@ if __name__=='__main__':
                 print(f"Breaking out at epoch {epoch}")
                 break
 
+    path = BASE_PATH + f'Model/{args.exp_name}-{args.cell_feat}-{args.seed}-{final_epoch}.pt'
+    # torch.save(best_ap_model, path)
+    torch.save(best_loss_model, path)
+
     if args.test_ratio != 0.0:
         test_data.to(device)
-        
+
+        hetGNNmodel.load_state_dict(torch.load(path))
         out = hetGNNmodel(test_data, edge_type_label="gene,dependency_of,cell")
-        pred = torch.sigmoid(out)
-        ground_truth = test_data["gene", "dependency_of", "cell"].edge_label
+        pred = torch.sigmoid(out).detach().cpu()
+        ground_truth = test_data["gene", "dependency_of", "cell"].edge_label.detach().cpu()
 
-        ap_test = average_precision_score(ground_truth.detach().cpu(), pred.detach().cpu())
+        index = test_data["gene", "dependency_of", "cell"].edge_label_index.detach().cpu()
 
-        run.log({"test AP": ap_test})
+        test_gene_ap, test_assay_ap = [], []
+
+        for cell in set(index[1]):
+            assay_msk = index[1] == cell    
+            assay_msk.cpu() 
+            test_assay_ap.append(average_precision_score(y_true=ground_truth[assay_msk],
+                                                        y_score=pred[assay_msk]))
+           
+        for gene in set(index[0]):
+            gene_msk = index[0] == gene   
+            gene_msk.cpu()  
+            if ground_truth[gene_msk].sum() + pred[gene_msk].sum() > 0.5:      
+                test_gene_ap.append(average_precision_score(y_true=ground_truth[gene_msk],
+                                                            y_score=pred[gene_msk]))  
+
+        ap_test = average_precision_score(ground_truth, pred)
+
+        run.log({"test AP": ap_test, "test gene AP": np.mean(test_gene_ap), "test assay AP": np.mean(test_assay_ap),})
+
+        # pred = torch.sigmoid(out)
+        # ground_truth = test_data["gene", "dependency_of", "cell"].edge_label
+
+        # ap_test = average_precision_score(ground_truth.detach().cpu(), pred.detach().cpu())
+
+        # run.log({"test AP": ap_test})
 
     # Calculate top prediction and send to Kaat
     cl_probs = torch.zeros((2, len(cls_int)*heterodata_obj['gene'].num_nodes), dtype=torch.long)
