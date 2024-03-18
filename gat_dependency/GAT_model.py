@@ -15,7 +15,7 @@ from typing import Optional
 from torch import Tensor
 from itertools import chain
 from collections import OrderedDict
-from torch_geometric.data import HeteroData
+from torch_geometric.data import HeteroData, Data
 
 gnn_factory = {
     "GCN": geom_nn.GCNConv,
@@ -253,7 +253,7 @@ class GCNsimple(nn.Module):
         gnnlayer = gnn_factory[layer_name]
         self.gnn1 = gnnlayer(in_channels=hidden_channels[0], out_channels=hidden_channels[1], aggr = aggregate, **kwargs)
         self.gnn2 = gnnlayer(in_channels=hidden_channels[1], out_channels=hidden_channels[2], aggr = aggregate, **kwargs)
-        # self.gnn3 = gnnlayer(in_channels=hidden_channels[2], out_channels=hidden_channels[3], **kwargs)
+        # self.gnn3 = gnnlayer(in_channels=hidden_channels[2], out_channels=hidden_channels[3], aggr = aggregate, **kwargs)
 
         
     def forward(self, x: Tensor, edge_index: Tensor) -> Tensor:
@@ -265,7 +265,7 @@ class GCNsimple(nn.Module):
         # x = F.relu(self.gnn2(x, edge_index))
         # x = F.dropout(x, training=self.training, p=0.2)
         
-        # x = F.relu(self.conv3(x, edge_index))
+        # x = F.relu(self.gnn3(x, edge_index))
         # x = F.dropout(x, training=self.training, p=0.2)
 
         x = self.gnn2(x, edge_index)
@@ -361,6 +361,26 @@ class LPdeep_classif(nn.Module):
         edge_ = (edge_feat_nt1 * edge_feat_nt2)
         
         return self.lin_layers(edge_)
+
+class Dynamic_ConvLayer(nn.Module):
+    def __init__(self, feat_size: int, kernel_size: int=4, stride: int=8, padding: int=327,):
+        super(Dynamic_ConvLayer, self).__init__()
+        self.conv1d = None
+        self.feat_size = feat_size
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.padding = padding
+
+    def forward(self, x):
+        self.conv1d = torch.nn.Conv1d(in_channels = self.feat_size, 
+                                    out_channels = self.feat_size,
+                                    kernel_size=self.kernel_size, 
+                                    stride=self.stride, 
+                                    padding= self.padding,
+                                    groups=self.feat_size,
+                                    )
+        
+        return self.conv1d(x)
     
 class HeteroData_GNNmodel(nn.Module):
     def __init__(self, heterodata: HeteroData, node_types: list, node_types_to_pred: list, embedding_dim, features_dim: dict,
@@ -372,31 +392,32 @@ class HeteroData_GNNmodel(nn.Module):
         self.node_types = node_types
         self.node_types_to_pred = node_types_to_pred
         self.gcn_model = gcn_model
-        # features.insert(0, embedding_dim)
-        # if isinstance(embedding_dim, int):
-        #     self.nt1_lin = torch.nn.Linear(features_dim[node_types[0]], embedding_dim)
-        #     self.nt2_lin = torch.nn.Linear(features_dim[node_types[1]], embedding_dim)
-        #     self.nt1_emb = torch.nn.Embedding(num_embeddings=heterodata[node_types[0]].num_nodes,
-        #                                     embedding_dim=embedding_dim)
-        #     self.nt2_emb = torch.nn.Embedding(num_embeddings=heterodata[node_types[1]].num_nodes,
-        #                                     embedding_dim=embedding_dim)
-        #     if len(node_types) == 3:
-        #         self.nt3_lin = torch.nn.Linear(features_dim[node_types[2]], embedding_dim)
-        #         self.nt3_emb = torch.nn.Embedding(num_embeddings=heterodata[node_types[2]].num_nodes,
-        #                                           embedding_dim=embedding_dim)    
-        # elif isinstance(embedding_dim, dict):
-        #     self.nt1_lin = torch.nn.Linear(features_dim[node_types[0]], embedding_dim[node_types[0]])
-        #     self.nt2_lin = torch.nn.Linear(features_dim[node_types[1]], embedding_dim[node_types[1]])
-        #     self.nt1_emb = torch.nn.Embedding(num_embeddings=heterodata[node_types[0]].num_nodes,
-        #                                     embedding_dim=embedding_dim[node_types[0]])
-        #     self.nt2_emb = torch.nn.Embedding(num_embeddings=heterodata[node_types[1]].num_nodes,
-        #                                     embedding_dim=embedding_dim[node_types[1]])
-        #     if len(node_types) == 3:
-        #         self.nt3_lin = torch.nn.Linear(features_dim[node_types[2]], embedding_dim[node_types[2]])
-        #         self.nt3_emb = torch.nn.Embedding(num_embeddings=heterodata[node_types[2]].num_nodes,
-        #                                           embedding_dim=embedding_dim[node_types[2]])    
-        # else:
-        #     TypeError,"Use correct embedding dim type"
+
+        #features.insert(0, embedding_dim)
+        if isinstance(embedding_dim, int):
+            self.nt1_lin = torch.nn.Linear(features_dim[node_types[0]], embedding_dim)
+            self.nt2_lin = torch.nn.Linear(features_dim[node_types[1]], embedding_dim)
+            self.nt1_emb = torch.nn.Embedding(num_embeddings=heterodata[node_types[0]].num_nodes,
+                                            embedding_dim=embedding_dim)
+            self.nt2_emb = torch.nn.Embedding(num_embeddings=heterodata[node_types[1]].num_nodes,
+                                            embedding_dim=embedding_dim)                              
+            if len(node_types) == 3:
+                self.nt3_lin = torch.nn.Linear(features_dim[node_types[2]], embedding_dim)
+                self.nt3_emb = torch.nn.Embedding(num_embeddings=heterodata[node_types[2]].num_nodes,
+                                                  embedding_dim=embedding_dim)    
+        elif isinstance(embedding_dim, dict):
+            self.nt1_lin = torch.nn.Linear(features_dim[node_types[0]], embedding_dim[node_types[0]])
+            self.nt2_lin = torch.nn.Linear(features_dim[node_types[1]], embedding_dim[node_types[1]])
+            self.nt1_emb = torch.nn.Embedding(num_embeddings=heterodata[node_types[0]].num_nodes,
+                                            embedding_dim=embedding_dim[node_types[0]])
+            self.nt2_emb = torch.nn.Embedding(num_embeddings=heterodata[node_types[1]].num_nodes,
+                                            embedding_dim=embedding_dim[node_types[1]])
+            if len(node_types) == 3:
+                self.nt3_lin = torch.nn.Linear(features_dim[node_types[2]], embedding_dim[node_types[2]])
+                self.nt3_emb = torch.nn.Embedding(num_embeddings=heterodata[node_types[2]].num_nodes,
+                                                  embedding_dim=embedding_dim[node_types[2]])    
+        else:
+            TypeError,"Use correct embedding dim type"
         
         # Instantiate homoGNN
         if self.gcn_model == 'simple':
@@ -423,18 +444,22 @@ class HeteroData_GNNmodel(nn.Module):
                 return_embeddings: bool=False, x_dict: dict=None) -> Tensor:
         etl = edge_type_label.split(',')
         # x_dict holds the feature matrix of all node_types
-
-        x_dict = data.x_dict
-        '''if len(self.node_types) == 2:
+        
+        # x_dict = data.x_dict
+        if len(self.node_types) == 2:
             # x_dict = {self.node_types[0]: self.nt1_emb(data[self.node_types[0]].node_id),
             #           self.node_types[1]: self.nt2_emb(data[self.node_types[1]].node_id)}
-            # x_dict = {self.node_types[0]: self.nt1_emb(data[self.node_types[0]].node_id) + self.nt1_lin(data[self.node_types[0]].x),
-            #           self.node_types[1]: self.nt2_emb(data[self.node_types[1]].node_id) + self.nt2_lin(data[self.node_types[1]].x)}
             # x_dict = {self.node_types[0]: self.nt1_lin(data[self.node_types[0]].x),
             #           self.node_types[1]: self.nt2_lin(data[self.node_types[1]].x)}
-            x_dict = {self.node_types[0]: data[self.node_types[0]].x,
-                      self.node_types[1]: data[self.node_types[1]].x}
-        else:
+            # x_dict = {self.node_types[0]: self.nt1_emb(data[self.node_types[0]].node_id) + self.nt1_lin(data[self.node_types[0]].x),
+            #           self.node_types[1]: self.nt2_emb(data[self.node_types[1]].node_id) + self.nt2_lin(data[self.node_types[1]].x)}
+            # x_dict = {self.node_types[0]: data[self.node_types[0]].x,
+            #           self.node_types[1]: data[self.node_types[1]].x}
+            # x_dict = {self.node_types[0]: self.nt1_lin(data[self.node_types[0]].x),
+            #           self.node_types[1]: data[self.node_types[1]].x}
+            x_dict = {self.node_types[0]:  self.nt1_lin(data[self.node_types[0]].x) + self.nt1_emb(data[self.node_types[0]].node_id),
+                       self.node_types[1]: self.nt2_lin(data[self.node_types[1]].x) + self.nt2_emb(data[self.node_types[1]].node_id)}
+        # else:
             # x_dict = {self.node_types[0]: self.nt1_emb(data[self.node_types[0]].node_id),
             #           self.node_types[1]: self.nt2_emb(data[self.node_types[1]].node_id),
             #           self.node_types[2]: self.nt3_emb(data[self.node_types[2]].node_id)}
@@ -444,9 +469,9 @@ class HeteroData_GNNmodel(nn.Module):
             # x_dict = {self.node_types[0]: self.nt1_emb(data[self.node_types[0]].node_id) + self.nt1_lin(data[self.node_types[0]].x),
             #           self.node_types[1]: self.nt2_emb(data[self.node_types[1]].node_id) + self.nt2_lin(data[self.node_types[1]].x),
             #           self.node_types[2]: self.nt3_emb(data[self.node_types[2]].node_id) + self.nt3_lin(data[self.node_types[2]].x)}
-            x_dict = {self.node_types[0]: data[self.node_types[0]].x,
-                      self.node_types[1]: data[self.node_types[1]].x,
-                      self.node_types[2]: data[self.node_types[2]].x}'''
+            # x_dict = {self.node_types[0]: data[self.node_types[0]].x,
+            #           self.node_types[1]: data[self.node_types[1]].x,
+            #           self.node_types[2]: data[self.node_types[2]].x}
 
         if self.gcn_model == 'simple':
             x_dict = self.gnn(x_dict, data.edge_index_dict)
@@ -565,3 +590,67 @@ def recon_loss(self, decoder, z: Tensor, pos_edge_index: Tensor,
                               1e-15).mean()
 
         return pos_loss + neg_loss
+
+
+class DLP_model(nn.Module):
+    def __init__(self, data: Data, features_dim: dict, embedding_dim: int=128, dropout: float=0.2, 
+                embedding_method: str='emb',  **kwargs):
+        super().__init__()
+
+        self.dropout = dropout
+        self.embedding_dim = embedding_dim
+        self.embedding_method = embedding_method
+
+        self.emb = torch.nn.Embedding(num_embeddings=len(data.node_type),
+                                        embedding_dim=embedding_dim)
+        self.emb_lin = torch.nn.Linear(embedding_dim, embedding_dim)
+        self.gene_lin = torch.nn.Linear(features_dim['gene'], embedding_dim)
+        self.cell_lin = torch.nn.Linear(features_dim['cell'], embedding_dim)    
+
+        self.lin_layers = nn.Sequential(
+            nn.Linear(in_features=embedding_dim, out_features=32),
+            nn.ReLU(),
+            nn.Dropout(p=self.dropout),
+            nn.Linear(in_features=32, out_features=32),
+            nn.ReLU(),
+            nn.Dropout(p=self.dropout),
+            nn.Linear(in_features=32, out_features=1),
+        )
+
+
+    def forward(self, data: Data=None, 
+                    feature: str='dot', return_embeddings: bool=False ) -> Tensor:
+
+        index = data.edge_label_index
+
+        cell_index = index[1]
+        gene_index = index[0]        
+        
+        if self.embedding_method == 'emb':
+            emb = self.emb(data.node_id)
+
+            feat = emb[gene_index] * emb[cell_index]
+
+        elif self.embedding_method == 'embalpha':
+            emb = self.emb_lin(self.emb(data.node_id))
+
+            feat = emb[gene_index] * emb[cell_index]
+
+        elif self.embedding_method == 'lin':
+            gene_feat = self.gene_lin(data.gene_feat)
+            cell_feat = self.cell_lin(data.cell_feat)
+
+            feat = torch.zeros(len(cell_index), self.embedding_dim)
+
+            for i, idx in enumerate(cell_index):
+                if idx > 14033:
+                    feat[i] = gene_feat[gene_index[i]] * cell_feat[idx-14034]
+                else:
+                    feat[i] = gene_feat[gene_index[i]] * gene_feat[idx]
+
+        pred = self.lin_layers(feat)
+
+        if return_embeddings:
+            return pred.squeeze(), emb
+        else:
+            return pred.squeeze()
