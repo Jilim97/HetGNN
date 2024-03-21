@@ -36,22 +36,15 @@ def construct_complete_predMatrix(total_predictions: np.array,
 
     return dep_df
 
-def direct_modifier(data):
-    index = data.edge_label_index
-
-    for i in range(len(index[0])):
-        if index[0][i] > 14033:
-            cell_idx = index[0][i]
-            gene_idx = index[1][i]
-            data.edge_label_index[0][i] = gene_idx
-            data.edge_label_index[1][i] = cell_idx
-
 def to_homo(data):
-
+    
+    # Delete reverse direction (DLP doesn't consider directionality)
     del data['gene', 'rev_interacts_with', 'gene']
     del data['cell', 'rev_dependency_of', 'gene']
 
+    # Convert to homogeneous data object
     homo_data = data.to_homogeneous()
+    # During conversion, nan values are added due to gene-cell interaction edge
     nan_msk = ~torch.isnan(homo_data.edge_label)
 
     homo_data.edge_label = homo_data.edge_label[nan_msk]
@@ -60,20 +53,24 @@ def to_homo(data):
 
 def merge_Data(data_gene, data_cell, mother_Data, cell_feat, gene_feat):
 
+    # Generate homogeneous data
     data = mother_Data.clone()
 
     data_gene = to_homo(data_gene)
     data_cell = to_homo(data_cell)
 
+    # Merge into separate tensor containing both information
     merged_label_index = torch.cat([data_gene.edge_label_index,data_cell.edge_label_index],dim=1)
     merged_index = torch.cat([data_gene.edge_index,data_cell.edge_index],dim=1)
     merged_label = torch.cat([data_gene.edge_label,data_cell.edge_label],dim=0)
     merged_edge_type = torch.cat([data_gene.edge_type,data_cell.edge_type],dim=0)
 
+    # Shuffle, if not labels will be  [1111,,,,00000]
     shuffled_index = torch.randperm(merged_label_index.size(1))
     shuffled_label_index = merged_label_index[:, shuffled_index]
     shuffled_label = merged_label[shuffled_index]
 
+    # Complete homogeneous grpah data object
     data.edge_index = merged_index
     data.edge_label = shuffled_label
     data.edge_label_index = shuffled_label_index
@@ -117,16 +114,13 @@ if __name__=='__main__':
     parser.add_argument('--lr', type=float, default=1e-2, help='learning rate')
     parser.add_argument('--hidden_features', type=str, default='-1,256,128,64', help='How many hidden features for each GNN layer')
     parser.add_argument('--patience', type=int, default=10, help='patience before breaking out of loop')
-    parser.add_argument('--layer_name', type=str, default='sageconv', help='Which gnn layer to use in the model')
-    parser.add_argument('--gcn_model', type=str, default='simple', help='which GNN model to use')
-    parser.add_argument('--lp_model', type=str, default='simple', help='which LP model to use')
     parser.add_argument('--remove_rpl', type=int, default=1, help='removing RPL genes')
     parser.add_argument('--remove_commonE', type=int, default=0, help='removing common essentials')
     parser.add_argument('--useSTD', type=int, default=1, help='removing common essentials')
     parser.add_argument('--save_full_pred', type=int, default=1, help='If you want to save the full (all genes in scaffold) perdiction df')
     parser.add_argument('--plot_cell_embeddings', type=int, default=0, help='If you want to plot the cell embeddings colored by subtype')
     parser.add_argument('--heads', type=str, default='1,1', help='Number of multiheads to use per GATlayer, must be same length as hidden features')
-    parser.add_argument('--cell_feat', type=str, default='expression', help='Cell feature name')
+    parser.add_argument('--cell_feat', type=str, default='cnv', help='Cell feature name')
     parser.add_argument('--gene_feat', type=str, default='cgp', help='Gene feature name')
     parser.add_argument('--emb_method', type=str, default='emb', help='Embedding method')
     parser.add_argument('--feature', type=str, default='dot', help='Embedding method')
@@ -189,6 +183,7 @@ if __name__=='__main__':
 
     homodata_obj = heterodata_obj_to_homo.to_homogeneous() # Convert to homogeneous graph
     
+    # Count numbers of unique node types to filter out cell node 
     node_types = homodata_obj.node_type
     
     unique_node_types, node_type_counts = node_types.unique(return_counts=True)
@@ -196,6 +191,7 @@ if __name__=='__main__':
     gene_num = node_type_counts[0]
     cell_num = node_type_counts[1]
 
+    # Extract node features
     cell_feat = heterodata_obj['cell'].x
     gene_feat = heterodata_obj['gene'].x
     #cell_feat = torch.nn.functional.pad(cell_feat, (0, gene_feat.size(1)-cell_feat.size(1)), "constant", 0)
@@ -205,9 +201,9 @@ if __name__=='__main__':
                     'gene': heterodata_obj['gene'].x.shape[1]
                     }
 
-    node_ids = homodata_obj.node_id
-    gnes_id = node_ids[:gene_num]
-    cell_id = node_ids[gene_num:] + gene_num
+    # node_ids = homodata_obj.node_id
+    # gnes_id = node_ids[:gene_num]
+    # cell_id = node_ids[gene_num:] + gene_num
 
     # whole_genes = list(set(gnes_id.numpy()))
     # whole_cells = list(set(cell_id.numpy()))
@@ -253,7 +249,9 @@ if __name__=='__main__':
     best_loss = np.inf
     epoch_since_best = 0
     n_epochs = args.epochs
-    best_ap = 0
+    
+    # Define parameters for checkpoint
+    best_ap = 0 
     best_ap_model = None
     lowest_loss = np.inf
     best_loss_model = None
@@ -282,15 +280,18 @@ if __name__=='__main__':
 
     train_data_cell, val_data_cell, test_data_cell = transform_traintest_cell(heterodata_obj)
 
+    # Generate graph obeject to conserve full connection of gene-gene interaction
     train_data_gene = heterodata_obj.clone()
 
+    # Since all edges are connected, make tensor with same size of edge index containing 1 (positive)
     label_len = heterodata_obj['gene', 'interacts_with', 'gene'].edge_index.size(1)
     labels = torch.ones(label_len)
 
+    # Add gene-gene interaction edge label index and its labels for training
     train_data_gene['gene', 'interacts_with', 'gene'].edge_label_index = heterodata_obj['gene', 'interacts_with', 'gene'].edge_index
     train_data_gene['gene', 'interacts_with', 'gene'].edge_label = labels
-    labels = torch.ones(label_len)
     
+    # Train data will be converted to homogeneous afeter merging (gene-gene + cell-gene)
     # train_data_cell = to_homo(train_data_cell)
     # train_data_gene = to_homo(train_data_gene)
     val_data = to_homo(val_data_cell)
@@ -298,10 +299,12 @@ if __name__=='__main__':
     test_data = to_homo(test_data_cell)
     # test_data_gene = to_homo(test_data_gene)
 
+    # Merge train data containing each edge type
     train_data = merge_Data(train_data_gene, train_data_cell, homodata_obj, cell_feat, gene_feat)
     #val_data = merge_Data(val_data_gene, val_data_cell, homodata_obj, cell_feat, gene_feat)
     #test_data = merge_Data(test_data_gene, test_data_cell, homodata_obj, cell_feat, gene_feat)
 
+    # Add node features
     # train_data.cell_feat = cell_feat
     # train_data.gene_feat = gene_feat
     val_data.cell_feat = cell_feat
@@ -374,11 +377,13 @@ if __name__=='__main__':
                 auc_val = roc_auc_score(ground_truth.cpu(), pred.cpu())
                 ap_val = average_precision_score(ground_truth.cpu(), pred.cpu())
                 
+                # CKPT for best loss
                 if val_loss < lowest_loss:
                     lowest_loss = val_loss
                     best_loss_model = deepcopy(DLP_model.state_dict())
                     final_epoch = epoch
-
+                
+                # CKPT for best AP
                 # if ap_val > best_ap:
                 #     best_ap = ap_val
                 #     best_ap_model = deepcopy(DLP_model.state_dict())
@@ -391,6 +396,7 @@ if __name__=='__main__':
                                                         edge_index=cl_probs,
                                                         index=cls_int.numpy(),
                                                         columns=dep_genes)
+            # tot_pred_deps.to_csv('/kyukon/data/gent/vo/000/gvo00095/vsc45456/DLP_embeddings.csv')
 
             assay_corr = tot_pred_deps.corrwith(crispr_neurobl_int*-1, method='spearman', axis=1)
             gene_ap, assay_ap = [], []
@@ -427,6 +433,7 @@ if __name__=='__main__':
                 print(f"Breaking out at epoch {epoch}")
                 break
 
+    # Save model
     path = BASE_PATH + f'Model/{args.exp_name}-{args.cell_feat}-{args.seed}-{final_epoch}.pt'
     # torch.save(best_ap_model, path)
     torch.save(best_loss_model, path)
@@ -434,6 +441,7 @@ if __name__=='__main__':
     if args.test_ratio != 0.0:
         test_data.to(device)
         
+        # Model Load
         DLP_model.load_state_dict(torch.load(path))
         out = DLP_model(test_data, feature = args.feature)
 
@@ -449,7 +457,8 @@ if __name__=='__main__':
             assay_msk.cpu() 
             test_assay_ap.append(average_precision_score(y_true=ground_truth[assay_msk],
                                                         y_score=pred[assay_msk]))
-           
+
+        # Filter out the list that only contain TN   
         for gene in set(index[0]):
             gene_msk = index[0] == gene   
             gene_msk.cpu()  
@@ -502,7 +511,7 @@ if __name__=='__main__':
     # cell_embs_df_copy = pd.DataFrame(data=cell_embeddings, index=cells)
     
     gene_embs_df.to_csv(BASE_PATH+f"results/"\
-                        f"{args.exp}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_DLP_gene_embs.csv")
+                        f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_DLP_gene_embs.csv")
     cell_embs_df.to_csv(BASE_PATH+f"results/"\
                         f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_DLP_cell_embs.csv")
 
