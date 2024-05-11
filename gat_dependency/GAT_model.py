@@ -449,16 +449,16 @@ class HeteroData_GNNmodel(nn.Module):
         if len(self.node_types) == 2:
             # x_dict = {self.node_types[0]: self.nt1_emb(data[self.node_types[0]].node_id),
             #           self.node_types[1]: self.nt2_emb(data[self.node_types[1]].node_id)}
-            # x_dict = {self.node_types[0]: self.nt1_lin(data[self.node_types[0]].x),
-            #           self.node_types[1]: self.nt2_lin(data[self.node_types[1]].x)}
+            x_dict = {self.node_types[0]: self.nt1_lin(data[self.node_types[0]].x),
+                      self.node_types[1]: self.nt2_lin(data[self.node_types[1]].x)}
             # x_dict = {self.node_types[0]: self.nt1_emb(data[self.node_types[0]].node_id) + self.nt1_lin(data[self.node_types[0]].x),
             #           self.node_types[1]: self.nt2_emb(data[self.node_types[1]].node_id) + self.nt2_lin(data[self.node_types[1]].x)}
             # x_dict = {self.node_types[0]: data[self.node_types[0]].x,
-            #           self.node_types[1]: data[self.node_types[1]].x}
+            #            self.node_types[1]: data[self.node_types[1]].x}
             # x_dict = {self.node_types[0]: self.nt1_lin(data[self.node_types[0]].x),
             #           self.node_types[1]: data[self.node_types[1]].x}
-            x_dict = {self.node_types[0]:  self.nt1_lin(data[self.node_types[0]].x) + self.nt1_emb(data[self.node_types[0]].node_id),
-                       self.node_types[1]: self.nt2_lin(data[self.node_types[1]].x) + self.nt2_emb(data[self.node_types[1]].node_id)}
+            # x_dict = {self.node_types[0]:  self.nt1_lin(data[self.node_types[0]].x) + self.nt1_emb(data[self.node_types[0]].node_id),
+            #            self.node_types[1]: self.nt2_lin(data[self.node_types[1]].x) + self.nt2_emb(data[self.node_types[1]].node_id)}
         # else:
             # x_dict = {self.node_types[0]: self.nt1_emb(data[self.node_types[0]].node_id),
             #           self.node_types[1]: self.nt2_emb(data[self.node_types[1]].node_id),
@@ -618,33 +618,40 @@ class DLP_model(nn.Module):
         )
 
 
-    def forward(self, data: Data=None, 
-                    feature: str='dot', return_embeddings: bool=False ) -> Tensor:
+    def forward(self, data: Data=None, return_embeddings: bool=False ) -> Tensor:
 
         index = data.edge_label_index
 
         cell_index = index[1]
-        gene_index = index[0]        
+        gene_index = index[0]    
+
+        # Count number of gene nodes
+        node_types = data.node_type
+        unique_node_types, node_type_counts = node_types.unique(return_counts=True)
+        gene_num = node_type_counts[0]    
         
+        # Embedding method
         if self.embedding_method == 'emb':
             emb = self.emb(data.node_id)
 
             feat = emb[gene_index] * emb[cell_index]
 
+        # Linear after Embedding
         elif self.embedding_method == 'embalpha':
             emb = self.emb_lin(self.emb(data.node_id))
 
             feat = emb[gene_index] * emb[cell_index]
 
+        # Linear with features
         elif self.embedding_method == 'lin':
             gene_feat = self.gene_lin(data.gene_feat)
             cell_feat = self.cell_lin(data.cell_feat)
 
-            feat = torch.zeros(len(cell_index), self.embedding_dim)
+            feat = torch.zeros(len(cell_index), self.embedding_dim) # construct full zero features
 
             for i, idx in enumerate(cell_index):
-                if idx > 14033:
-                    feat[i] = gene_feat[gene_index[i]] * cell_feat[idx-14034]
+                if idx > gene_num-1:
+                    feat[i] = gene_feat[gene_index[i]] * cell_feat[idx-gene_num]
                 else:
                     feat[i] = gene_feat[gene_index[i]] * gene_feat[idx]
 

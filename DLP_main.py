@@ -9,14 +9,11 @@ import torch
 import pickle 
 from gat_dependency.GAT_model import DLP_model
 from sklearn.metrics import roc_auc_score, average_precision_score
-from sklearn.model_selection import KFold
 import numpy as np
 import pandas as pd
 import os
 import argparse
 import wandb
-from datetime import datetime
-from torch_geometric.explain import Explainer, GNNExplainer, ModelConfig
 from torch_geometric import seed_everything
 from copy import deepcopy
 
@@ -116,7 +113,6 @@ if __name__=='__main__':
     parser.add_argument('--batch_size', type=int, default=256, help='batch size')
     parser.add_argument('--lr', type=float, default=1e-2, help='learning rate')
     parser.add_argument('--hidden_features', type=str, default='-1,256,128,64', help='How many hidden features for each GNN layer')
-    parser.add_argument('--patience', type=int, default=10, help='patience before breaking out of loop')
     parser.add_argument('--layer_name', type=str, default='sageconv', help='Which gnn layer to use in the model')
     parser.add_argument('--gcn_model', type=str, default='simple', help='which GNN model to use')
     parser.add_argument('--lp_model', type=str, default='simple', help='which LP model to use')
@@ -128,10 +124,9 @@ if __name__=='__main__':
     parser.add_argument('--heads', type=str, default='1,1', help='Number of multiheads to use per GATlayer, must be same length as hidden features')
     parser.add_argument('--cell_feat', type=str, default='expression', help='Cell feature name')
     parser.add_argument('--gene_feat', type=str, default='cgp', help='Gene feature name')
-    parser.add_argument('--emb_method', type=str, default='emb', help='Embedding method')
-    parser.add_argument('--feature', type=str, default='dot', help='Embedding method')
+    parser.add_argument('--emb_method', type=str, default='embalpha', help='Embedding method')
     parser.add_argument('--seed', type=int, default=42, help='Random Seed')
-    parser.add_argument('--exp_name', type=str, default='emb', help='Experiment Name')
+    parser.add_argument('--exp_name', type=str, default='DLPWhole-LinEmb', help='Experiment Name')
 
     args = parser.parse_args()
     now = datetime.now()
@@ -249,7 +244,6 @@ if __name__=='__main__':
     # Define training parameters
     optimizer = torch.optim.Adam(DLP_model.parameters(), lr=args.lr)
     loss_fn = torch.nn.BCEWithLogitsLoss()
-    patience = args.patience
     best_loss = np.inf
     epoch_since_best = 0
     n_epochs = args.epochs
@@ -353,7 +347,7 @@ if __name__=='__main__':
             optimizer.zero_grad()
             sampled_data.to(device)
             
-            out = DLP_model(sampled_data, feature = args.feature)
+            out = DLP_model(sampled_data)
 
             ground_truth = sampled_data.edge_label
             loss = loss_fn(out, ground_truth) 
@@ -367,7 +361,7 @@ if __name__=='__main__':
             if args.val_ratio != 0.0:
                 val_data.to(device)
 
-                out = DLP_model(val_data, feature = args.feature)
+                out = DLP_model(val_data)
                 pred = torch.sigmoid(out)
 
                 index = val_data.edge_label_index
@@ -422,17 +416,6 @@ if __name__=='__main__':
                         'assay_ap': np.mean(assay_ap), 'gene_ap': np.mean(gene_ap),
                         'assay_corr_sp': assay_corr.mean()})
 
-        if args.val_ratio != 0.0:
-            if val_loss < best_loss:
-                best_loss = val_loss
-                epoch_since_best = 0
-            else:
-                epoch_since_best += 1
-            
-            if epoch_since_best == patience:
-                print(f"Breaking out at epoch {epoch}")
-                break
-
     path = BASE_PATH + f'Model/{args.exp_name}-{args.cell_feat}-{args.seed}-{final_epoch}.pt'
     # torch.save(best_ap_model, path)
     torch.save(best_loss_model, path)
@@ -441,7 +424,7 @@ if __name__=='__main__':
         test_data.to(device)
 
         DLP_model.load_state_dict(torch.load(path))
-        out = DLP_model(test_data, feature = args.feature)
+        out = DLP_model(test_data)
 
         pred = torch.sigmoid(out).detach().cpu()
         ground_truth = test_data.edge_label.detach().cpu()

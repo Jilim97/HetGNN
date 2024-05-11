@@ -58,7 +58,6 @@ if __name__=='__main__':
     parser.add_argument('--batch_size', type=int, default=128, help='batch size')
     parser.add_argument('--lr', type=float, default=1e-2, help='learning rate')
     parser.add_argument('--hidden_features', type=str, default='-1,256,128', help='How many hidden features for each GNN layer')
-    parser.add_argument('--patience', type=int, default=10, help='patience before breaking out of loop')
     parser.add_argument('--layer_name', type=str, default='sageconv', help='Which gnn layer to use in the model')
     parser.add_argument('--gcn_model', type=str, default='simple', help='which GNN model to use')
     parser.add_argument('--lp_model', type=str, default='simple', help='which LP model to use')
@@ -68,11 +67,11 @@ if __name__=='__main__':
     parser.add_argument('--save_full_pred', type=int, default=1, help='If you want to save the full (all genes in scaffold) perdiction df')
     parser.add_argument('--plot_cell_embeddings', type=int, default=0, help='If you want to plot the cell embeddings colored by subtype')
     parser.add_argument('--heads', type=str, default='1,1', help='Number of multiheads to use per GATlayer, must be same length as hidden features')
-    parser.add_argument('--cell_feat', type=str, default='expression', help='Cell feature name')
+    parser.add_argument('--cell_feat', type=str, default='cnv', help='Cell feature name')
     parser.add_argument('--gene_feat', type=str, default='cgp', help='Gene feature name')
     parser.add_argument('--aggregate', type=str, default='mean', help='Aggregation method')
     parser.add_argument('--seed', type=int, default=42, help='Random Seed')
-    parser.add_argument('--exp_name', type=str, default='emb', help='Experiment Name')
+    parser.add_argument('--exp_name', type=str, default='GNN', help='Experiment Name')
 
 
     args = parser.parse_args()
@@ -84,11 +83,11 @@ if __name__=='__main__':
 
     seed_everything(args.seed)
 
-    experiment_name = f"{args.exp_name}"
-    group_name = f"{args.cell_feat}"
+    experiment_name = f"{args.exp_name}_{args.cell_feat}"
+    group_name = f"{args.gene_feat}"
 
     if args.log:
-        run = wandb.init(project="CKPT_Loss", entity=args.wandb_user,  config=args, name=experiment_name, group=group_name) 
+        run = wandb.init(project="Final_Combination_Lin", entity=args.wandb_user,  config=args, name=experiment_name, group=group_name) 
 
     BASE_PATH = "/kyukon/data/gent/vo/000/gvo00095/vsc45456/"
     # BASE_PATH = '/'.join(os.path.dirname(os.path.realpath(__file__)).split('/')[:-1])
@@ -189,14 +188,8 @@ if __name__=='__main__':
 
     # Define training parameters
     optimizer = torch.optim.Adam(hetGNNmodel.parameters(), lr=args.lr)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,
-                                                        T_max=args.epochs,
-                                                        eta_min=0, 
-                                                        last_epoch=-1,
-                                                        verbose=False,
-                                                        )
+
     loss_fn = torch.nn.BCEWithLogitsLoss()
-    patience = args.patience
     best_loss = np.inf
     epoch_since_best = 0
     best_ap = 0
@@ -285,15 +278,15 @@ if __name__=='__main__':
                 auc_val = roc_auc_score(ground_truth.cpu(), pred.cpu())
                 ap_val = average_precision_score(ground_truth.cpu(), pred.cpu())
 
-                if val_loss < lowest_loss:
-                    lowest_loss = val_loss
-                    best_loss_model = deepcopy(hetGNNmodel.state_dict())
-                    final_epoch = epoch
-
-                # if ap_val > best_ap:
-                #     best_ap = ap_val
-                #     best_ap_model = deepcopy(hetGNNmodel.state_dict())
+                # if val_loss < lowest_loss:
+                #     lowest_loss = val_loss
+                #     best_loss_model = deepcopy(hetGNNmodel.state_dict())
                 #     final_epoch = epoch
+
+                if ap_val > best_ap:
+                    best_ap = ap_val
+                    best_ap_model = deepcopy(hetGNNmodel.state_dict())
+                    final_epoch = epoch
 
             full_pred_data.to(device)
             total_preds = hetGNNmodel(data=full_pred_data, edge_type_label="gene,dependency_of,cell")
@@ -326,20 +319,10 @@ if __name__=='__main__':
                         'assay_ap': np.mean(assay_ap), 'gene_ap': np.mean(gene_ap),
                         'assay_corr_sp': assay_corr.mean()})
 
-        if args.val_ratio != 0.0:
-            if val_loss < best_loss:
-                best_loss = val_loss
-                epoch_since_best = 0
-            else:
-                epoch_since_best += 1
-            
-            if epoch_since_best == patience:
-                print(f"Breaking out at epoch {epoch}")
-                break
 
-    path = BASE_PATH + f'Model/{args.exp_name}-{args.cell_feat}-{args.seed}-{final_epoch}.pt'
-    # torch.save(best_ap_model, path)
-    torch.save(best_loss_model, path)
+    path = BASE_PATH + f'results_comb_lin/model/{args.gene_feat}-{args.cell_feat}-seedwith{args.seed}-at{final_epoch}.pt'
+    torch.save(best_ap_model, path)
+    # torch.save(best_loss_model, path)
 
     if args.test_ratio != 0.0:
         test_data.to(device)
@@ -368,7 +351,7 @@ if __name__=='__main__':
 
         ap_test = average_precision_score(ground_truth, pred)
 
-        run.log({"test AP": ap_test, "test gene AP": np.mean(test_gene_ap), "test assay AP": np.mean(test_assay_ap),})
+        run.log({"test AP": ap_test, "test gene AP": np.mean(test_gene_ap), "test assay AP": np.mean(test_assay_ap),'CKPT': final_epoch})
 
         # pred = torch.sigmoid(out)
         # ground_truth = test_data["gene", "dependency_of", "cell"].edge_label
@@ -413,23 +396,23 @@ if __name__=='__main__':
     cell_embs_df = pd.DataFrame(data=embs['cell'].cpu().detach().numpy(), index=cells)
     # cell_embs_df_copy = pd.DataFrame(data=cell_embeddings, index=cells)
     
-    gene_embs_df.to_csv(BASE_PATH+f"results/{args.gene_feat}-{args.cell_feat}/"\
-                        f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN_gene_embs{args.drugs}_{args.gene_feat}_{args.cell_feat}_{args.layer_name}.csv")
-    cell_embs_df.to_csv(BASE_PATH+f"results/{args.gene_feat}-{args.cell_feat}/"\
-                        f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN_cell_embs{args.drugs}_{args.gene_feat}_{args.cell_feat}_{args.layer_name}.csv")
+    gene_embs_df.to_csv(BASE_PATH+f"results_comb_lin/file/"\
+                        f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN_gene_embs{args.drugs}_{args.gene_feat}_{args.cell_feat}_{args.seed}.csv")
+    cell_embs_df.to_csv(BASE_PATH+f"results_comb_lin/file/"\
+                        f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN_cell_embs{args.drugs}_{args.gene_feat}_{args.cell_feat}_{args.seed}.csv")
 
     if args.drugs:
         drug_embs_df = pd.DataFrame(data=embs['drug'].cpu().detach().numpy(), index=drugs)
-        drug_embs_df.to_csv(BASE_PATH+f"results/{args.cell_feat}/"\
-                            f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN_drug_embs_{args.gene_feat}_{args.cell_feat}_{args.layer_name}.csv")
+        drug_embs_df.to_csv(BASE_PATH+f"results_comb_lin/file/"\
+                            f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN_drug_embs_{args.gene_feat}_{args.cell_feat}_{args.seed}.csv")
     
     if args.save_full_pred:
         tot_pred_deps = construct_complete_predMatrix(total_predictions=preds_full_all,
                                                     edge_index=cl_probs, index=cls_int.numpy(),
                                                     columns=heterodata_obj['gene'].node_id.numpy())
 
-        tot_pred_deps.to_csv(BASE_PATH+f"results/{args.gene_feat}-{args.cell_feat}/"\
-                            f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN{args.drugs}_{args.gene_feat}_{args.cell_feat}_{args.layer_name}.csv")
+        tot_pred_deps.to_csv(BASE_PATH+f"results_comb_lin/file/"\
+                            f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN{args.drugs}_{args.gene_feat}_{args.cell_feat}_{args.seed}.csv")
         
 
     if args.plot_cell_embeddings:
