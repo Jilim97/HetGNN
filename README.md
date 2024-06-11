@@ -26,8 +26,8 @@
 ## 3 Results Generation
 
 - **Final_Result**
-  - Contains code for generating figures, tables, and lists of reprioritized genes.
-  - Contains generated figures by pptx
+  - Contains code for generating figures, tables, and lists of reprioritized genes. (See Jupyter Notebook in folder)
+  - Contains generated figures by pptxm can be checked in 'Final_Result/Fugures made.pptx'.
 
 ## 4 How to Run the Code
 
@@ -39,7 +39,7 @@ python hetgnn_main.py --epochs 30 --lr 0.0001 --batch_size 256 --emb_dim 512 --s
 
 ## 5 Resources and Data Sources
 
-All resources and data sources mentioned in this thesis are publicly accessible. This ensures that anyone can freely access and utilize these materials for research and development purposes
+All resources and data sources mentioned in this thesis are publicly accessible. This ensures that anyone can freely access and utilize these materials for research and development purposes.
 
 ### 5.1 Reactome
 
@@ -63,7 +63,7 @@ All resources and data sources mentioned in this thesis are publicly accessible.
 
 
 ## 6 WandB (Weights & Biases)
-- All results can be found in WandB
+- All results can be found in WandB.
 - **DLP:** [View DLP Project](https://wandb.ai/jilim97/Final_DLP?nw=nwuserjilim97)
 - **HetGNN:** [View HetGNN Project](https://wandb.ai/jilim97/Final_HetGNN?nw=nwuserjilim97)
 - **HetGNN-Lin:** [View HetGNN-Lin Project](https://wandb.ai/jilim97/Final_HetGNN_Lin?nw=nwuserjilim97)
