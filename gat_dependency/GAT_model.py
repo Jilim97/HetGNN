@@ -449,14 +449,16 @@ class HeteroData_GNNmodel(nn.Module):
         if len(self.node_types) == 2:
             # x_dict = {self.node_types[0]: self.nt1_emb(data[self.node_types[0]].node_id),
             #           self.node_types[1]: self.nt2_emb(data[self.node_types[1]].node_id)}
-            x_dict = {self.node_types[0]: self.nt1_lin(data[self.node_types[0]].x),
-                      self.node_types[1]: self.nt2_lin(data[self.node_types[1]].x)}
+            # x_dict = {self.node_types[0]: self.nt1_lin(data[self.node_types[0]].x),
+            #           self.node_types[1]: self.nt2_lin(data[self.node_types[1]].x)}
             # x_dict = {self.node_types[0]: self.nt1_emb(data[self.node_types[0]].node_id) + self.nt1_lin(data[self.node_types[0]].x),
             #           self.node_types[1]: self.nt2_emb(data[self.node_types[1]].node_id) + self.nt2_lin(data[self.node_types[1]].x)}
             # x_dict = {self.node_types[0]: data[self.node_types[0]].x,
             #            self.node_types[1]: data[self.node_types[1]].x}
+            x_dict = {self.node_types[0]: data[self.node_types[0]].x,
+                      self.node_types[1]: self.nt2_emb(data[self.node_types[1]].node_id)}
             # x_dict = {self.node_types[0]: self.nt1_lin(data[self.node_types[0]].x),
-            #           self.node_types[1]: data[self.node_types[1]].x}
+            #           self.node_types[1]: self.nt2_emb(data[self.node_types[1]].node_id)}
             # x_dict = {self.node_types[0]:  self.nt1_lin(data[self.node_types[0]].x) + self.nt1_emb(data[self.node_types[0]].node_id),
             #            self.node_types[1]: self.nt2_lin(data[self.node_types[1]].x) + self.nt2_emb(data[self.node_types[1]].node_id)}
         # else:

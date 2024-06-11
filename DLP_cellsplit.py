@@ -14,7 +14,6 @@ import pandas as pd
 import os
 import argparse
 import wandb
-from datetime import datetime
 from torch_geometric import seed_everything
 from copy import deepcopy
 
@@ -115,14 +114,13 @@ if __name__=='__main__':
     parser.add_argument('--useSTD', type=int, default=1, help='removing common essentials')
     parser.add_argument('--save_full_pred', type=int, default=1, help='If you want to save the full (all genes in scaffold) perdiction df')
     parser.add_argument('--plot_cell_embeddings', type=int, default=0, help='If you want to plot the cell embeddings colored by subtype')
-    parser.add_argument('--cell_feat', type=str, default='cnv', help='Cell feature name')
+    parser.add_argument('--cell_feat', type=str, default='expression', help='Cell feature name')
     parser.add_argument('--gene_feat', type=str, default='cgp', help='Gene feature name')
     parser.add_argument('--emb_method', type=str, default='emb', help='Embedding method')
     parser.add_argument('--seed', type=int, default=42, help='Random Seed')
     parser.add_argument('--exp_name', type=str, default='emb', help='Experiment Name')
 
     args = parser.parse_args()
-    now = datetime.now()
     args.remove_rpl = "_noRPL" if args.remove_rpl else ""        
     args.remove_commonE = "commonE" if args.remove_commonE else ""
     args.useSTD = "STD" if args.useSTD else "NOSTD"
@@ -130,11 +128,11 @@ if __name__=='__main__':
     
     seed_everything(args.seed)
 
-    experiment_name = f"{args.exp_name}"
-    group_name = 'DLP'
+    experiment_name = f"{args.exp_name}_{args.cell_feat}_{args.seed}"
+    group_name = 'Cell_Split'
 
     if args.log:
-        run = wandb.init(project="CKPT_Loss", entity=args.wandb_user,  config=args, name=experiment_name, group=group_name) 
+        run = wandb.init(project="Final_DLP", entity=args.wandb_user,  config=args, name=experiment_name, group=group_name) 
 
     BASE_PATH = "/kyukon/data/gent/vo/000/gvo00095/vsc45456/"
 
@@ -413,7 +411,7 @@ if __name__=='__main__':
                         'assay_corr_sp': assay_corr.mean()})
 
     # Save model
-    path = BASE_PATH + f'Model/{args.exp_name}-{args.cell_feat}-{args.seed}-{final_epoch}.pt'
+    path = BASE_PATH + f'DLP/Cell/Model/{args.exp_name}-{args.cell_feat}-{args.seed}-{final_epoch}.pt'
     # torch.save(best_ap_model, path)
     torch.save(best_loss_model, path)
 
@@ -465,6 +463,7 @@ if __name__=='__main__':
     full_pred_data.gene_feat = gene_feat
 
     full_pred_data_all.to('cpu')
+    DLP_model.load_state_dict(torch.load(path))
     DLP_model.to('cpu')
     DLP_model.eval()
     with torch.no_grad():
@@ -489,14 +488,14 @@ if __name__=='__main__':
     cell_embs_df = pd.DataFrame(data=embs['cell'].cpu().detach().numpy(), index=cells)
     # cell_embs_df_copy = pd.DataFrame(data=cell_embeddings, index=cells)
     
-    gene_embs_df.to_csv(BASE_PATH+f"results/"\
+    gene_embs_df.to_csv(BASE_PATH+f"DLP/Cell/File/"\
                         f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_DLP_gene_embs.csv")
-    cell_embs_df.to_csv(BASE_PATH+f"results/"\
+    cell_embs_df.to_csv(BASE_PATH+f"DLP/Cell/File/"\
                         f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_DLP_cell_embs.csv")
 
     if args.drugs:
         drug_embs_df = pd.DataFrame(data=embs['drug'].cpu().detach().numpy(), index=drugs)
-        drug_embs_df.to_csv(BASE_PATH+f"results/"\
+        drug_embs_df.to_csv(BASE_PATH+f"DLP/Cell/File/"\
                             f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_HetGNN_drug_embs_{args.gene_feat}_{args.cell_feat}_{args.layer_name}.csv")
     
     if args.save_full_pred:
@@ -504,7 +503,7 @@ if __name__=='__main__':
                                                     edge_index=cl_probs, index=cls_int.numpy(),
                                                     columns=heterodata_obj['gene'].node_id.numpy())
 
-        tot_pred_deps.to_csv(BASE_PATH+f"results/"\
+        tot_pred_deps.to_csv(BASE_PATH+f"DLP/Cell/File/"\
                             f"{args.cancer_type.replace(' ', '_')}_{args.ppi}{args.remove_rpl}_{args.useSTD}{args.remove_commonE}_crispr{str(args.crp_pos).replace('.','_')}_DLPGNN.csv")
         
 

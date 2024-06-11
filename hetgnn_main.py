@@ -83,7 +83,7 @@ if __name__=='__main__':
 
     seed_everything(args.seed)
 
-    experiment_name = f"{args.exp_name}_{args.cell_feat}"
+    experiment_name = f"{args.exp_name}_{args.cell_feat}_{args.seed}"
     group_name = f"{args.gene_feat}"
 
     if args.log:
@@ -383,6 +383,7 @@ if __name__=='__main__':
     #                                                 num_workers=10)
     
     full_pred_data_all.to('cpu')
+    hetGNNmodel.load_state_dict(torch.load(path))
     hetGNNmodel.to('cpu')
     hetGNNmodel.eval()
     with torch.no_grad():

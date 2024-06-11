@@ -97,7 +97,7 @@ for k, v in cgn.items():
 zero_gene_feat = cgn_df.index[cgn_df.sum(axis=1) == 0] # This is not allowed because all genes must have features
 # Check how many of the dep genes are in that all 0, otherwise this is basically of no use
 zero_depgenes = set(zero_gene_feat) & set(dep_genes)
-len(zero_depgenes)
+print(len(zero_depgenes))
 
 gene_feat = torch.from_numpy(cgn_df.values).to(torch.float) ##why not filtering???? 크키맞출라고
 
@@ -119,6 +119,7 @@ if cell_feat_name == "expression":
     cancer_expression_full = pd.concat([cancer_expression_hvg,
                                         pd.DataFrame(np.tile(cancer_expression_hvg.mean().values, (len(set(cells) - set(cancer_expression_hvg.index)), 1)),
                                                     index=list(set(cells) - set(cancer_expression_hvg.index)), columns=cancer_expression_hvg.columns)])
+    cancer_expression_full[:] = np.random.uniform(0, 10, size=cancer_expression_full.shape)
     cell_feat = torch.from_numpy(cancer_expression_full.loc[cell2int.keys()].values).to(torch.float)
 
 elif cell_feat_name == "cnv":
@@ -132,6 +133,7 @@ elif cell_feat_name == "cnv":
     hvg_final = ccle_cnv.std()[ccle_cnv.std() >= hvg_q].index
 
     ccle_cnv_hvg = ccle_cnv[hvg_final]
+    ccle_cnv_hvg[:] = np.random.uniform(0, 10, size=ccle_cnv_hvg.shape)
     cell_feat = torch.from_numpy(ccle_cnv_hvg.loc[cell2int.keys()].values).to(torch.float)
 
 elif '_' in cell_feat_name:
@@ -162,13 +164,19 @@ elif '_' in cell_feat_name:
             ccle_cnv = ccle_cnv[ccle_cnv.columns[ccle_cnv.isna().sum() == 0]]
             ccle_cnv = ccle_cnv.loc[list(set(cells) & set(ccle_cnv.index))]
 
-            hvg_q_CNV = ccle_cnv.std().quantile(q=0.99)
-            hvg_final_CNV = ccle_cnv.std()[ccle_cnv.std() >= hvg_q_CNV].index
+            hvg_q = ccle_cnv.std().quantile(q=0.95)
+            hvg_final_CNV = ccle_cnv.std()[ccle_cnv.std() >= hvg_q].index
 
             ccle_cnv_hvg = ccle_cnv[hvg_final_CNV]
 
-    expression_CNV_full = pd.concat([ccle_cnv_hvg, cancer_expression_full], axis=1)    
-    cell_feat = torch.from_numpy(expression_CNV_full.loc[cell2int.keys()].values).to(torch.float)
+    if all_feats[0] == 'expression':
+        expression_CNV_full = pd.concat([cancer_expression_full, ccle_cnv_hvg], axis=1)  
+        cell_feat = torch.from_numpy(expression_CNV_full.loc[cell2int.keys()].values).to(torch.float) 
+    else:
+        CNV_expression_full = pd.concat([ccle_cnv_hvg, cancer_expression_full], axis=1)  
+        cell_feat = torch.from_numpy(CNV_expression_full.loc[cell2int.keys()].values).to(torch.float)
+
+    
 
 elif "SomaticMutation" in cell_feat_name:
     if 'Damaging' in cell_feat_name:
@@ -229,4 +237,4 @@ assert data.validate()
 print(data)
 
 torch.save(obj=data, f=BASE_PATH+f"multigraphs/heteroData_gene_cell_{cancer_type.replace(' ', '_')}_{ppi}"\
-          f"_crispr{str(crispr_threshold_pos).replace('.','_')}{drugtarget_nw}_{gene_feat_name}_{cell_feat_name}.pt")
+          f"_crispr{str(crispr_threshold_pos).replace('.','_')}{drugtarget_nw}_{gene_feat_name}_{cell_feat_name}_rnd.pt")

@@ -13,7 +13,8 @@ import numpy as np
 import pickle
 
 BASE_PATH = "/kyukon/data/gent/vo/000/gvo00095/vsc45456/"
-cancer_type = "Neuroblastoma"
+#cancer_type = "Neuroblastoma"
+cancer_type = 'Non-Small Cell Lung Cancer'
 #cancer_type_name = "Sarcoma"
 train_ratio = 0.8
 ppi = "Reactome"
@@ -85,6 +86,8 @@ elif '_' in cancer_type:
 else:
     crispr_neurobl = crispr_effect.loc[dis_groups.loc[cancer_type].cells]
     crispr_neurobl.to_csv(BASE_PATH+f"data/crispr_{cancer_type.replace(' ', '_')}_{ppi}.csv")
+
+print(crispr_neurobl.shape)
 
 # ---------------------------------------------------------------------------------------------------------------
 
