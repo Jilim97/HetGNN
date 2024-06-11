@@ -24,3 +24,9 @@ Conda environment setting
 ## Final_Result
 
 Code for generating figures, tables, and reprioritized gene lists
+
+## Model run example:
+
+python hetgnn_main.py --epochs 30 --lr 0.00001 --batch_size 256 --emb_dim 512 --seed 42 --exp_name example_test \
+
+cods can be run like this format, adjusting arguement using --arg
