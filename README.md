@@ -37,7 +37,7 @@ You can run the scripts with the following format, adjusting arguments using `--
 
 ```bash
 python hetgnn_main.py --epochs 30 --lr 0.0001 --batch_size 256 --emb_dim 512 --seed 42 --exp_name example_test
-
+```
 
 # Resources and Data Sources
 
