@@ -27,7 +27,7 @@
 
 - **Final_Result**
   - Contains code for generating figures, tables, and lists of reprioritized genes. (See Jupyter Notebook in folder)
-  - Contains generated figures by pptxm can be checked in 'Final_Result/Fugures made.pptx'.
+  - Contains generated figures by pptxm can be checked in `Final_Result/Fugures made.pptx`.
 
 ## 4 How to Run the Code
 
