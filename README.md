@@ -16,3 +16,11 @@ DLP with Cell Only split method; main for DLP
 
 1. construct_heterogeneous_graph_jihwan.py
 2. construct_heterogeneous_graph_pyG_jihwan.py
+
+## Conda list
+
+Conda environment setting
+
+## Final_Result
+
+Code for generating figures, tables, and reprioritized gene lists
