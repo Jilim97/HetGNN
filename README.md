@@ -1,35 +1,43 @@
-# HetGNN
+# HetGNN Project Files Overview
 
-## hetgnn_main.py
+This document provides an overview of the main scripts and environment settings used in the HetGNN project.
 
-For HetGNN, the layers can be modified in gat_dependency/GAT_model.py
+## Python Scripts
 
-## DLP_main.py
+### HetGNN
+- **hetgnn_main.py**
+  - Main script for HetGNN. Layer configurations can be modified in `gat_dependency/GAT_model.py`.
 
-DLP with Whole split method; not main for DLP
+### DLP (Dependency Learning Protocol)
+- **DLP_main.py**
+  - Implements DLP with the Whole split method. This script is not the main script for DLP operations.
+- **DLP_cellsplit.py**
+  - Implements DLP with the Cell Only split method. This is the main script for DLP operations.
 
-## DLP_cellsplit.py
+### Graph Construction
+- **construct_heterogeneous_graph_jihwan.py**
+  - Script for constructing a heterogeneous graph.
+- **construct_heterogeneous_graph_pyG_jihwan.py**
+  - Script for constructing a heterogeneous graph using PyTorch Geometric.
 
-DLP with Cell Only split method; main for DLP
+## Environment Setup
 
-## Graph Construction
+- **Conda list**
+  - Provides the conda environment settings required for running the project.
 
-1. construct_heterogeneous_graph_jihwan.py
-2. construct_heterogeneous_graph_pyG_jihwan.py
+## Results Generation
 
-## Conda list
+- **Final_Result**
+  - Contains code for generating figures, tables, and lists of reprioritized genes.
+  - Contains generated figures by pptx
 
-Conda environment setting
+## How to Run the Code
 
-## Final_Result
+You can run the scripts with the following format, adjusting arguments using `--arg`:
 
-Code for generating figures, tables, and reprioritized gene lists
+```bash
+python hetgnn_main.py --epochs 30 --lr 0.0001 --batch_size 256 --emb_dim 512 --seed 42 --exp_name example_test
 
-## Model run example:
-
-python hetgnn_main.py --epochs 30 --lr 0.0001 --batch_size 256 --emb_dim 512 --seed 42 --exp_name example_test 
-
-codes can be run like this format, adjusting arguement using --arg
 
 # Resources and Data Sources
 
