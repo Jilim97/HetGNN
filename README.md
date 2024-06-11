@@ -2,17 +2,17 @@
 
 ## 1 Python Scripts
 
-### HetGNN
+### 1.1 HetGNN
 - **hetgnn_main.py**
   - Main script for HetGNN. Layer configurations can be modified in `gat_dependency/GAT_model.py`.
 
-### DLP 
+### 1.2 DLP 
 - **DLP_main.py**
   - Implements DLP with the Whole split method. 
 - **DLP_cellsplit.py**
   - Implements DLP with the Cell Only split method. 
 
-### Graph Construction
+### 1.3 Graph Construction
 - **construct_heterogeneous_graph_jihwan.py**
   - Script for constructing a heterogeneous graph.
 - **construct_heterogeneous_graph_pyG_jihwan.py**
