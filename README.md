@@ -39,7 +39,7 @@ python hetgnn_main.py --epochs 30 --lr 0.0001 --batch_size 256 --emb_dim 512 --s
 
 ## 5 Resources and Data Sources
 
-This README provides detailed links to the resources and data sources used in the project.
+All resources and data sources mentioned in this thesis are publicly accessible. This ensures that anyone can freely access and utilize these materials for research and development purposes
 
 ### 5.1 Reactome
 
