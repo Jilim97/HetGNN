@@ -98,7 +98,7 @@ if __name__=='__main__':
     parser.add_argument('--cancer_type', type=str, default="Neuroblastoma", help='Cancer type to train for')
     parser.add_argument('--drugs', type=int, default="0", help='Use the intergrated graph with drugs and targets')
     parser.add_argument('--ppi', type=str, default="Reactome", help='Which ppi to use as scaffold')
-    parser.add_argument('-crp_pos', type=float, default=-1.5, help='crispr threshold for positives')
+    parser.add_argument('--crp_pos', type=float, default=-1.5, help='crispr threshold for positives')
     parser.add_argument('--epochs', type=int, default=6, help='num epochs')
     parser.add_argument('--npr', type=float, default=3.0, help='Negatiev sampling ratio')
     parser.add_argument('--emb_dim', type=int, default=128, help='Embedding dimension')
