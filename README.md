@@ -44,7 +44,7 @@ All resources and data sources mentioned in this thesis are publicly accessible.
 
 ### 5.1 Reactome
 
-- **Protein-protein network:** [Download FIsInGene with annotations (Zip file)](https://reactome.org/download/tools/ReatomeFIs/FIsInGene_070323_with_annotations.txt.zip)
+- **Protein-protein network:** [Download FIsInGene with annotations](https://reactome.org/download/tools/ReatomeFIs/FIsInGene_070323_with_annotations.txt.zip)
 
 ### 5.2 Dependency Map
 
