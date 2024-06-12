@@ -64,7 +64,7 @@ All resources and data sources mentioned in this thesis are publicly accessible.
 
 
 ## 6 WandB (Weights & Biases)
-- All results can be found in WandB.
+- All results can be found in WandB and check comments in overview first!
 - **DLP:** [View DLP Project](https://wandb.ai/jilim97/Final_DLP?nw=nwuserjilim97)
 - **HetGNN:** [View HetGNN Project](https://wandb.ai/jilim97/Final_HetGNN?nw=nwuserjilim97)
 - **HetGNN-Lin:** [View HetGNN-Lin Project](https://wandb.ai/jilim97/Final_HetGNN_Lin?nw=nwuserjilim97)
