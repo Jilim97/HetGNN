@@ -23,8 +23,8 @@
 - **Conda list**
   - Conda environment settings required for running the project.
  
-Build conda virtual environment for Spatial transcriptomics pipeline with yml file\
-yml file contains all necessary packages
+- Build conda virtual environment for running codes\
+  - yml file contains all necessary packages
 ```
 conda env create --name envname --file=envrironment.yml
 ```
