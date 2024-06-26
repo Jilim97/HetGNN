@@ -1,4 +1,4 @@
-# Master's Dissertation: Gene Reprioritization in Cancer Cell Lines through Heterogeneous GNNs
+# Master's Dissertation: Gene Reprioritization in Cancer Cell Lines Through Heterogeneous GNNs
 
 ## 1 Python Scripts
 
